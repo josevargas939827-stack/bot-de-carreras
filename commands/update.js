@@ -10,13 +10,23 @@ function iconForPosition(pos) {
   return '•';
 }
 
+function formatEntry(entry, idx) {
+  const pos = idx + 1;
+  const icon = iconForPosition(pos);
+  const powerupsDisplay = entry.powerups && entry.powerups.length > 0 ? entry.powerups.join(', ') : 'No Power-ups';
+  const carDisplay = entry.car || 'Unknown Car';
+  const timeDisplay = entry.time || 'Unknown time';
+
+  return [
+    `${icon} ${pos}. ${entry.name}`,
+    `🚗 ${carDisplay}`,
+    `⚡ ${powerupsDisplay}`,
+    `⏱️ ${timeDisplay}`,
+  ].join('\n');
+}
+
 function formatLeaderboard(leaderboard) {
-  return leaderboard.map((entry, idx) => {
-    const pos = idx + 1;
-    const icon = iconForPosition(pos);
-    const label = pos.toString().padStart(2, ' ');
-    return `${icon} ${label}. ${entry.name} — ${entry.timeRaw}`;
-  }).join('\n');
+  return leaderboard.map((entry, idx) => formatEntry(entry, idx)).join('\n\n');
 }
 
 function buildGapLine(leaderboard) {
