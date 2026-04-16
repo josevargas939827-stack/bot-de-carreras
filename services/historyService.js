@@ -45,6 +45,23 @@ function pruneHistoryEntries(entries, now = Date.now()) {
     .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
 }
 
+function dedupeHistoryEntries(entries) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const entry of entries) {
+    const signature = buildEntrySignature(entry);
+    if (seen.has(signature)) {
+      continue;
+    }
+
+    seen.add(signature);
+    deduped.push(entry);
+  }
+
+  return deduped;
+}
+
 function buildEntrySignature(entry) {
   return JSON.stringify({
     track: entry.track.toLowerCase(),
@@ -83,12 +100,14 @@ async function readHistory() {
       throw new Error('History JSON root must be an array.');
     }
 
-    const pruned = pruneHistoryEntries(parsed);
-    if (pruned.length !== parsed.length) {
-      await writeHistory(pruned);
+    const normalized = pruneHistoryEntries(parsed);
+    const deduped = dedupeHistoryEntries(normalized);
+
+    if (deduped.length !== parsed.length) {
+      await writeHistory(deduped);
     }
 
-    return pruned;
+    return deduped;
   } catch (error) {
     console.error('Failed to read history.json:', error.message);
     return [];
@@ -119,7 +138,7 @@ async function saveLeaderboardHistory(track, leaderboard) {
       return { saved: false, reason: 'duplicate' };
     }
 
-    const nextHistory = pruneHistoryEntries([newEntry, ...history]);
+    const nextHistory = dedupeHistoryEntries(pruneHistoryEntries([newEntry, ...history]));
     await writeHistory(nextHistory);
     return { saved: true, entry: newEntry };
   } catch (error) {
@@ -130,10 +149,17 @@ async function saveLeaderboardHistory(track, leaderboard) {
 
 async function getTrackHistory(trackName, limit = 3) {
   const history = await readHistory();
+  const normalizedTrack = String(trackName || '').trim().toLowerCase();
 
   return history
-    .filter((entry) => entry.track.toLowerCase() === String(trackName || '').trim().toLowerCase())
+    .filter((entry) => entry.track.toLowerCase() === normalizedTrack)
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
     .slice(0, limit);
+}
+
+async function getLatestTrackSnapshot(trackName) {
+  const [latestEntry] = await getTrackHistory(trackName, 1);
+  return latestEntry || null;
 }
 
 function buildUsageStats(entries, field) {
@@ -170,6 +196,7 @@ module.exports = {
   HISTORY_FILE,
   HISTORY_RETENTION_DAYS,
   buildUsageStats,
+  getLatestTrackSnapshot,
   getTrackHistory,
   readHistory,
   saveLeaderboardHistory,
