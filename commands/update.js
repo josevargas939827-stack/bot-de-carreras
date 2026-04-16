@@ -1,5 +1,6 @@
 ﻿const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getActiveTrackAndLeaderboard } = require('../services/raceService');
+const { saveLeaderboardHistory } = require('../services/historyService');
 const { describeGap } = require('../utils/timeUtils');
 
 function iconForPosition(pos) {
@@ -51,6 +52,8 @@ module.exports = {
       await interaction.editReply('There is no active race at the moment.');
       return;
     }
+
+    await saveLeaderboardHistory(track, leaderboard);
 
     const gapLine = buildGapLine(leaderboard);
     const embed = new EmbedBuilder()
