@@ -1,4 +1,4 @@
-﻿const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getActiveTrackAndLeaderboard } = require('../services/raceService');
 const { saveLeaderboardHistory } = require('../services/historyService');
 const { describeGap } = require('../utils/timeUtils');
@@ -46,7 +46,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: false });
 
-    const { track, leaderboard } = await getActiveTrackAndLeaderboard();
+    const { track, leaderboard, progressText } = await getActiveTrackAndLeaderboard();
 
     if (!track || leaderboard.length === 0) {
       await interaction.editReply('There is no active race at the moment.');
@@ -57,11 +57,15 @@ module.exports = {
 
     const gapLine = buildGapLine(leaderboard);
     const embed = new EmbedBuilder()
-      .setTitle(`${track.name} — Top 18`)
+      .setTitle(`${track.name} — Top ${leaderboard.length}`)
       .setDescription(formatLeaderboard(leaderboard))
       .setColor(0x14b8a6)
       .setFooter({ text: 'Upland Racing | /pilotupdate' })
       .setTimestamp(new Date());
+
+    if (progressText) {
+      embed.addFields({ name: 'Race Status', value: progressText });
+    }
 
     if (gapLine) {
       embed.addFields({ name: 'Gap Analysis', value: gapLine });

@@ -1,7 +1,8 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { startTrackingScheduler } = require('./services/trackingScheduler');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
@@ -28,6 +29,8 @@ client.once('ready', async () => {
   } catch (err) {
     console.error('Failed to register slash commands:', err);
   }
+
+  startTrackingScheduler();
 });
 
 client.on('interactionCreate', async (interaction) => {

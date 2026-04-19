@@ -1,33 +1,40 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { buildUsageStats, readHistory, HISTORY_RETENTION_DAYS } = require('../services/historyService');
+const { getActiveTrackAndLeaderboard } = require('../services/raceService');
+const { HISTORY_RETENTION_DAYS } = require('../services/historyService');
+const { getTrackMetaStats } = require('../services/statsService');
 
 function formatStatsLines(stats) {
   return stats
     .slice(0, 10)
-    .map((item, index) => `${index + 1}. ${item.name} - ${item.count} uses (${item.percentage.toFixed(1)}%)`)
+    .map((item, index) => `${index + 1}. ${item.name} - ${item.percentage.toFixed(1)}% (${item.count})`)
     .join('\n');
 }
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('powerup-stats')
-    .setDescription('Show power-up usage percentages from the last 7 days.'),
+    .setDescription('Show power-up usage percentages from the active track history.'),
   async execute(interaction) {
     await interaction.deferReply();
 
-    const history = await readHistory();
-    const stats = buildUsageStats(history, 'powerups');
+    const { track } = await getActiveTrackAndLeaderboard();
+    if (!track) {
+      await interaction.editReply('There is no active race at the moment.');
+      return;
+    }
 
-    if (stats.length === 0) {
-      await interaction.editReply(`No history data found for the last ${HISTORY_RETENTION_DAYS} days.`);
+    const { powerups, entries } = await getTrackMetaStats(track.name, { days: HISTORY_RETENTION_DAYS });
+
+    if (powerups.length === 0) {
+      await interaction.editReply(`No history data found for ${track.name} in the last ${HISTORY_RETENTION_DAYS} days.`);
       return;
     }
 
     const embed = new EmbedBuilder()
       .setTitle('\u26A1 Power-Up Usage (Last 7 Days)')
       .setColor(0x2563eb)
-      .setDescription(formatStatsLines(stats))
-      .setFooter({ text: `Based on ${history.length} leaderboard updates` })
+      .setDescription(formatStatsLines(powerups))
+      .setFooter({ text: `${track.name} | Based on ${entries.length} snapshots` })
       .setTimestamp(new Date());
 
     await interaction.editReply({ embeds: [embed] });

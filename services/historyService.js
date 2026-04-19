@@ -22,6 +22,25 @@ function normalizePlayer(player = {}) {
   };
 }
 
+function collectUniqueValues(players, field) {
+  const values = new Set();
+
+  for (const player of players) {
+    if (field === 'powerups') {
+      const powerups = Array.isArray(player.powerups) ? player.powerups : [];
+      for (const powerup of powerups) {
+        if (powerup) values.add(String(powerup).trim());
+      }
+      continue;
+    }
+
+    const value = player[field];
+    if (value) values.add(String(value).trim());
+  }
+
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
 function normalizeEntry(entry = {}) {
   const timestamp = new Date(entry.timestamp || Date.now()).toISOString();
   const players = Array.isArray(entry.players) ? entry.players.map(normalizePlayer) : [];
@@ -30,6 +49,12 @@ function normalizeEntry(entry = {}) {
     track: String(entry.track || 'Unknown Track').trim(),
     timestamp,
     players,
+    cars: Array.isArray(entry.cars) && entry.cars.length > 0
+      ? entry.cars.map((item) => String(item).trim())
+      : collectUniqueValues(players, 'car'),
+    powerups: Array.isArray(entry.powerups) && entry.powerups.length > 0
+      ? entry.powerups.map((item) => String(item).trim())
+      : collectUniqueValues(players, 'powerups'),
   };
 }
 
@@ -39,10 +64,29 @@ function pruneHistoryEntries(entries, now = Date.now()) {
   return entries
     .map(normalizeEntry)
     .filter((entry) => {
-      const parsed = Date.parse(entry.timestamp);
-      return Number.isFinite(parsed) && parsed >= cutoff && entry.track && entry.players.length > 0;
+      const parsedTimestamp = Date.parse(entry.timestamp);
+      return Number.isFinite(parsedTimestamp) && parsedTimestamp >= cutoff && entry.track && entry.players.length > 0;
     })
     .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+}
+
+function buildEntrySignature(entry) {
+  return JSON.stringify({
+    track: entry.track.toLowerCase(),
+    players: entry.players.map((player) => ({
+      name: player.name.toLowerCase(),
+      car: player.car.toLowerCase(),
+      powerups: player.powerups.map((item) => item.toLowerCase()),
+      time: player.time,
+    })),
+  });
+}
+
+function buildLeaderboardSignature(trackName, leaderboard) {
+  return buildEntrySignature(normalizeEntry({
+    track: trackName,
+    players: leaderboard,
+  }));
 }
 
 function dedupeHistoryEntries(entries) {
@@ -60,18 +104,6 @@ function dedupeHistoryEntries(entries) {
   }
 
   return deduped;
-}
-
-function buildEntrySignature(entry) {
-  return JSON.stringify({
-    track: entry.track.toLowerCase(),
-    players: entry.players.map((player) => ({
-      name: player.name.toLowerCase(),
-      car: player.car.toLowerCase(),
-      powerups: player.powerups.map((item) => item.toLowerCase()),
-      time: player.time,
-    })),
-  });
 }
 
 async function ensureHistoryFile() {
@@ -100,14 +132,12 @@ async function readHistory() {
       throw new Error('History JSON root must be an array.');
     }
 
-    const normalized = pruneHistoryEntries(parsed);
-    const deduped = dedupeHistoryEntries(normalized);
-
-    if (deduped.length !== parsed.length) {
-      await writeHistory(deduped);
+    const sanitized = dedupeHistoryEntries(pruneHistoryEntries(parsed));
+    if (sanitized.length !== parsed.length) {
+      await writeHistory(sanitized);
     }
 
-    return deduped;
+    return sanitized;
   } catch (error) {
     console.error('Failed to read history.json:', error.message);
     return [];
@@ -162,6 +192,24 @@ async function getLatestTrackSnapshot(trackName) {
   return latestEntry || null;
 }
 
+async function getTrackHistoryWithinRange(trackName, options = {}) {
+  const history = await readHistory();
+  const normalizedTrack = String(trackName || '').trim().toLowerCase();
+  const days = Number.isInteger(options.days) && options.days > 0
+    ? Math.min(options.days, HISTORY_RETENTION_DAYS)
+    : HISTORY_RETENTION_DAYS;
+  const snapshotLimit = Number.isInteger(options.snapshotLimit) && options.snapshotLimit > 0
+    ? options.snapshotLimit
+    : null;
+  const cutoffTimestamp = Date.now() - (days * 24 * 60 * 60 * 1000);
+
+  const filtered = history.filter((entry) => (
+    entry.track.toLowerCase() === normalizedTrack && Date.parse(entry.timestamp) >= cutoffTimestamp
+  ));
+
+  return snapshotLimit ? filtered.slice(0, snapshotLimit) : filtered;
+}
+
 function buildUsageStats(entries, field) {
   const counts = new Map();
   let total = 0;
@@ -195,9 +243,12 @@ function buildUsageStats(entries, field) {
 module.exports = {
   HISTORY_FILE,
   HISTORY_RETENTION_DAYS,
+  buildEntrySignature,
+  buildLeaderboardSignature,
   buildUsageStats,
   getLatestTrackSnapshot,
   getTrackHistory,
+  getTrackHistoryWithinRange,
   readHistory,
   saveLeaderboardHistory,
 };
