@@ -22,8 +22,6 @@ module.exports = {
     .setName('tracker-status')
     .setDescription('Show the latest automatic tracking status.'),
   async execute(interaction) {
-    await interaction.deferReply();
-
     const status = getTrackingStatus();
 
     const embed = new EmbedBuilder()

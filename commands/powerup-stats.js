@@ -15,8 +15,6 @@ module.exports = {
     .setName('powerup-stats')
     .setDescription('Show power-up usage percentages from the active track history.'),
   async execute(interaction) {
-    await interaction.deferReply();
-
     const { track } = await getActiveTrackAndLeaderboard();
     if (!track) {
       await interaction.editReply('There is no active race at the moment.');

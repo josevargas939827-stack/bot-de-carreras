@@ -7,34 +7,6 @@ const { convertTimeToSeconds } = require('../utils/timeUtils');
 const BASE_URL = 'https://racing.myupland.info/event_race_times.php?event_id=4';
 const MAX_DRIVERS = 18;
 
-function pickRaceTimeTable($) {
-  const tables = $('table.race-table');
-  if (!tables || tables.length === 0) return null;
-
-  let byHeading = null;
-  let byHeader = null;
-
-  tables.each((_, table) => {
-    const heading = $(table).prevAll('h4.table-title').first().text().toLowerCase();
-    const hasRows = $(table).find('.pos-col').length > 0;
-    if (!hasRows) return;
-
-    if (/race|event/.test(heading)) {
-      byHeading = table;
-      return false;
-    }
-
-    const headerText = $(table).find('th').text().toLowerCase();
-    if (/race|event/.test(headerText)) {
-      byHeader = table;
-    }
-  });
-
-  if (byHeading) return byHeading;
-  if (byHeader) return byHeader;
-  return tables.last();
-}
-
 const POWERUP_KEYWORDS = [
   { key: 'nitro', label: 'Nitro Boost' },
   { key: 'grip', label: 'Grip Boost' },
@@ -53,7 +25,7 @@ function mapPowerup(raw) {
   return titleCase(raw);
 }
 
-function extractPowerups($cell) {
+function extractPowerups($, $cell) {
   const imgs = $cell.find('img');
   if (!imgs || imgs.length === 0) return [];
 
@@ -72,62 +44,125 @@ function extractPowerups($cell) {
 }
 
 function extractTimeFromRow($, row) {
-  const timeCells = $(row).find('.time-col');
-  let timeRaw = null;
+  const timeCell = $(row).find('.time-col').first();
+  if (!timeCell || timeCell.length === 0) {
+    return null;
+  }
 
-  timeCells.each((__, cell) => {
-    const candidateText = $(cell).text().trim().replace(/\s+/g, ' ');
-    const match = candidateText.match(/(\d{1,2}:\d{2}\.\d{3,})/);
-    if (match) {
-      timeRaw = match[1];
-      return false;
+  const candidateText = timeCell.text().trim().replace(/\s+/g, ' ');
+  const colonMatch = candidateText.match(/(\d{1,2}:\d{2}\.\d{3,})/);
+  if (colonMatch) {
+    return colonMatch[1];
+  }
+
+  const secondsMatch = candidateText.match(/(\d+(?:\.\d+)?)/);
+  return secondsMatch ? secondsMatch[1] : null;
+}
+
+function extractFinishedAt($, row) {
+  const finishedAtCell = $(row).find('.time-col').eq(1);
+  if (!finishedAtCell || finishedAtCell.length === 0) {
+    return null;
+  }
+
+  const value = finishedAtCell.text().trim().replace(/\s+/g, ' ');
+  const parsed = Date.parse(`${value} UTC`);
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+
+  const fallback = Date.parse(value);
+  return Number.isFinite(fallback) ? fallback : null;
+}
+
+function parseLeaderboardTable($, table) {
+  const results = [];
+  let latestFinishedAt = 0;
+
+  $(table)
+    .find('tr')
+    .each((_, row) => {
+      const positionText = $(row).find('.pos-col').first().text().trim();
+      const position = parseInt(positionText, 10);
+      const name = $(row).find('.driver-name strong').first().text().trim();
+      const car = $(row).find('.driver-name small').first().text().trim() || 'Unknown Car';
+      const powerups = extractPowerups($, $(row).find('.pu-col').first());
+      const timeRaw = extractTimeFromRow($, row);
+
+      if (!position || !name || !timeRaw) {
+        return;
+      }
+
+      const timeSeconds = convertTimeToSeconds(timeRaw);
+      if (timeSeconds == null) {
+        return;
+      }
+
+      const finishedAt = extractFinishedAt($, row);
+      if (finishedAt && finishedAt > latestFinishedAt) {
+        latestFinishedAt = finishedAt;
+      }
+
+      results.push({ position, name, car, powerups, time: timeRaw, timeSeconds, finishedAt });
+    });
+
+  return {
+    results: results.sort((a, b) => a.position - b.position).slice(0, MAX_DRIVERS),
+    latestFinishedAt,
+  };
+}
+
+function pickBestRaceTable($) {
+  const tables = $('table.race-table');
+  if (!tables || tables.length === 0) {
+    return { results: [], latestFinishedAt: 0 };
+  }
+
+  const parsedTables = [];
+  tables.each((_, table) => {
+    const parsed = parseLeaderboardTable($, table);
+    if (parsed.results.length > 0) {
+      parsedTables.push(parsed);
     }
   });
 
-  return timeRaw;
+  if (parsedTables.length === 0) {
+    return { results: [], latestFinishedAt: 0 };
+  }
+
+  parsedTables.sort((a, b) => {
+    if (b.latestFinishedAt !== a.latestFinishedAt) {
+      return b.latestFinishedAt - a.latestFinishedAt;
+    }
+
+    if (b.results.length !== a.results.length) {
+      return b.results.length - a.results.length;
+    }
+
+    return 0;
+  });
+
+  return parsedTables[0];
 }
 
 async function getLeaderboard(trackId, order) {
   const url = `${BASE_URL}&event_order=${order}&trackid=${trackId}`;
-  const results = [];
 
   try {
     const { data } = await axios.get(url, { timeout: 15000 });
     const $ = cheerio.load(data);
-
-    const targetTable = pickRaceTimeTable($);
-    if (!targetTable) return results;
-
-    $(targetTable)
-      .find('tr')
-      .each((_, row) => {
-        const positionText = $(row).find('.pos-col').first().text().trim();
-        const position = parseInt(positionText, 10);
-        const name = $(row).find('.driver-name strong').first().text().trim();
-        const car = $(row).find('.driver-name small').first().text().trim() || 'Unknown Car';
-        const powerups = extractPowerups($(row).find('.pu-col').first());
-        const timeRaw = extractTimeFromRow($, row);
-
-        if (!position || !name || !timeRaw) {
-          return;
-        }
-
-        const timeSeconds = convertTimeToSeconds(timeRaw);
-        if (timeSeconds == null) {
-          return;
-        }
-
-        results.push({ position, name, car, powerups, time: timeRaw, timeSeconds });
-      });
+    const parsed = pickBestRaceTable($);
+    const leaderboard = parsed.results;
+    leaderboard.latestFinishedAt = parsed.latestFinishedAt;
+    return leaderboard;
   } catch (error) {
     console.error(`Error scraping track ${trackId} order ${order}:`, error.message);
+    return [];
   }
-
-  return results.sort((a, b) => a.position - b.position).slice(0, MAX_DRIVERS);
 }
 
 function buildRaceProgress(driverCount) {
-  return `🏁 Race in progress (${driverCount}/${MAX_DRIVERS} drivers)`;
+  return `\u{1F3C1} Race in progress (${driverCount}/${MAX_DRIVERS} drivers)`;
 }
 
 async function enrichTrackSnapshot(track, leaderboard) {
@@ -135,6 +170,7 @@ async function enrichTrackSnapshot(track, leaderboard) {
   const leaderboardSignature = buildLeaderboardSignature(track.name, leaderboard);
   const latestSignature = latestSnapshot ? buildEntrySignature(latestSnapshot) : null;
   const lastSavedTimestamp = latestSnapshot ? Date.parse(latestSnapshot.timestamp) : 0;
+  const latestFinishedAt = Number.isFinite(leaderboard.latestFinishedAt) ? leaderboard.latestFinishedAt : 0;
 
   return {
     track,
@@ -145,10 +181,15 @@ async function enrichTrackSnapshot(track, leaderboard) {
     latestSnapshot,
     hasChanged: leaderboardSignature !== latestSignature,
     lastSavedTimestamp,
+    latestFinishedAt,
   };
 }
 
 function compareTrackSnapshots(a, b) {
+  if (b.latestFinishedAt !== a.latestFinishedAt) {
+    return b.latestFinishedAt - a.latestFinishedAt;
+  }
+
   if (a.hasChanged !== b.hasChanged) {
     return Number(b.hasChanged) - Number(a.hasChanged);
   }

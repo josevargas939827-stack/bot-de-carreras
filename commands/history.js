@@ -27,8 +27,6 @@ module.exports = {
     .setName('history')
     .setDescription('Show the latest saved leaderboard snapshot for the current track.'),
   async execute(interaction) {
-    await interaction.deferReply();
-
     const { track } = await getActiveTrackAndLeaderboard();
     if (!track) {
       await interaction.editReply('There is no active race at the moment, so I cannot determine the current track.');

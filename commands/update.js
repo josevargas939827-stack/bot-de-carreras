@@ -44,8 +44,6 @@ module.exports = {
     .setName('pilotupdate')
     .setDescription('Show the active Upland race leaderboard.'),
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
-
     const { track, leaderboard, progressText } = await getActiveTrackAndLeaderboard();
 
     if (!track || leaderboard.length === 0) {

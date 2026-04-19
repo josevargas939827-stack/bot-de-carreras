@@ -1,1 +1,178 @@
-[]
+[
+  {
+    "track": "Tyner Zephyr",
+    "timestamp": "2026-04-19T04:52:23.380Z",
+    "players": [
+      {
+        "name": "cuttybo",
+        "car": "Series 1 E",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:52.9103038"
+      },
+      {
+        "name": "jrwheels",
+        "car": "Series 1 E",
+        "powerups": [
+          "Basic Nicotine Handling Gum",
+          "Nitro Boost"
+        ],
+        "time": "03:54.1532250"
+      },
+      {
+        "name": "foureskin",
+        "car": "Series 1 R",
+        "powerups": [
+          "Basic Nicotine Handling Gum",
+          "Nitro Boost"
+        ],
+        "time": "03:55.4677130"
+      },
+      {
+        "name": "batistoo",
+        "car": "Series 1 E",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:55.5639434"
+      },
+      {
+        "name": "chiun307",
+        "car": "Series 1",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:56.3240738"
+      },
+      {
+        "name": "jh2271",
+        "car": "Series 1 E",
+        "powerups": [
+          "Basic Nicotine Handling Gum",
+          "Enhanced Nicotine Handling Gum",
+          "Nitro Boost"
+        ],
+        "time": "03:56.6840974"
+      },
+      {
+        "name": "alejogp7969",
+        "car": "Series 1 E",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:57.7323506"
+      },
+      {
+        "name": "cruzerito",
+        "car": "Series 1",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:57.8025532"
+      },
+      {
+        "name": "ace696",
+        "car": "Series 1",
+        "powerups": [
+          "Basic Energy Drink",
+          "Nitro Boost"
+        ],
+        "time": "03:57.9539056"
+      },
+      {
+        "name": "glizzywrld",
+        "car": "Series 1 E",
+        "powerups": [
+          "Basic Nicotine Handling Gum",
+          "Nitro Boost"
+        ],
+        "time": "03:58.4322465"
+      },
+      {
+        "name": "accapropy",
+        "car": "Series 1 UK Edition",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:58.5512811"
+      },
+      {
+        "name": "sckicker2022",
+        "car": "Series 1",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "03:58.7251115"
+      },
+      {
+        "name": "boydern",
+        "car": "Series 1 E",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "04:00.2606037"
+      },
+      {
+        "name": "ko_ninja",
+        "car": "Series 1",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "04:00.6747747"
+      },
+      {
+        "name": "wanderer1976",
+        "car": "Series 1 E",
+        "powerups": [
+          "Basic Nicotine Handling Gum",
+          "Nitro Boost"
+        ],
+        "time": "04:01.0573796"
+      },
+      {
+        "name": "iamram2025",
+        "car": "Series 1 R",
+        "powerups": [
+          "Enhanced Aeroscent Speed Tree",
+          "Nitro Boost"
+        ],
+        "time": "04:02.5362741"
+      },
+      {
+        "name": "caltradingco",
+        "car": "Series 4 R",
+        "powerups": [
+          "Basic Aeroscent Speed Tree",
+          "Enhanced Aerodynamic Wax",
+          "Nitro Boost"
+        ],
+        "time": "04:06.4263005"
+      },
+      {
+        "name": "tinyc420",
+        "car": "Series 1",
+        "powerups": [
+          "Nitro Boost"
+        ],
+        "time": "04:06.9458879"
+      }
+    ],
+    "cars": [
+      "Series 1",
+      "Series 1 E",
+      "Series 1 R",
+      "Series 1 UK Edition",
+      "Series 4 R"
+    ],
+    "powerups": [
+      "Basic Aeroscent Speed Tree",
+      "Basic Energy Drink",
+      "Basic Nicotine Handling Gum",
+      "Enhanced Aerodynamic Wax",
+      "Enhanced Aeroscent Speed Tree",
+      "Enhanced Nicotine Handling Gum",
+      "Nitro Boost"
+    ]
+  }
+]

@@ -116,9 +116,11 @@ function startTrackingScheduler() {
     return intervalHandle;
   }
 
-  runTrackingCycle().catch((error) => {
-    console.error('[tracker] Initial run failed:', error.message);
-  });
+  setTimeout(() => {
+    runTrackingCycle().catch((error) => {
+      console.error('[tracker] Initial run failed:', error.message);
+    });
+  }, 5000);
 
   intervalHandle = setInterval(() => {
     runTrackingCycle().catch((error) => {

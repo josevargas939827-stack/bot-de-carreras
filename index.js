@@ -4,6 +4,49 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { startTrackingScheduler } = require('./services/trackingScheduler');
 
+const LOCK_FILE = path.join(__dirname, 'data', 'bot.lock');
+
+function acquireSingleInstanceLock() {
+  fs.mkdirSync(path.dirname(LOCK_FILE), { recursive: true });
+
+  try {
+    fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: 'wx' });
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      const existingPid = fs.readFileSync(LOCK_FILE, 'utf8').trim() || 'unknown';
+      console.error(`Another bot instance is already running (PID: ${existingPid}).`);
+      process.exit(1);
+    }
+
+    throw error;
+  }
+}
+
+function releaseSingleInstanceLock() {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const storedPid = fs.readFileSync(LOCK_FILE, 'utf8').trim();
+      if (storedPid === String(process.pid)) {
+        fs.unlinkSync(LOCK_FILE);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to release bot lock:', error.message);
+  }
+}
+
+acquireSingleInstanceLock();
+
+process.on('exit', releaseSingleInstanceLock);
+process.on('SIGINT', () => {
+  releaseSingleInstanceLock();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  releaseSingleInstanceLock();
+  process.exit(0);
+});
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
 
@@ -21,7 +64,7 @@ for (const file of commandFiles) {
 }
 
 client.once('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag} (PID: ${process.pid})`);
   try {
     const cmds = client.commands.map((cmd) => cmd.data.toJSON());
     await client.application.commands.set(cmds);
@@ -40,15 +83,30 @@ client.on('interactionCreate', async (interaction) => {
   if (!command) return;
 
   try {
+    await interaction.deferReply();
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content: 'Oops! Something went wrong while executing this command.' });
-    } else {
-      await interaction.reply({ content: 'Oops! Something went wrong while executing this command.', ephemeral: true });
+    console.error('[interaction-error]', {
+      command: interaction.commandName,
+      deferred: interaction.deferred,
+      replied: interaction.replied,
+    });
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: 'Oops! Something went wrong while executing this command.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'Oops! Something went wrong while executing this command.', ephemeral: true });
+      }
+    } catch (replyError) {
+      console.error('[interaction-error:reply-failed]', replyError);
     }
   }
+});
+
+client.on('error', (error) => {
+  console.error('[client-error]', error);
 });
 
 if (!process.env.DISCORD_TOKEN) {
